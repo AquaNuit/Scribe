@@ -45,7 +45,7 @@ on:
 
 env:
   SCHEME: Scribe
-  PROJECT_DIR: Scribe
+  PROJECT_DIR: .
   CONFIGURATION: ${{ github.event.inputs.build_configuration || 'Release' }}
 
 # Cancel in-progress runs for the same branch

@@ -1,0 +1,355 @@
+# ──────────────────────────────────────────────────────────────
+#  Scribe — Build IPA for iPad Sideloading via AltStore
+# ──────────────────────────────────────────────────────────────
+#
+#  HOW IT WORKS:
+#    1. Generates the Xcode project using XcodeGen
+#    2. Builds an unsigned .app for arm64 (real device)
+#    3. Packages it into an IPA
+#    4. Uploads IPA as a GitHub Actions artifact
+#
+#  HOW TO INSTALL ON YOUR iPAD:
+#    1. Download the IPA from Actions → Artifacts tab
+#    2. Open AltStore on your computer (with AltServer running)
+#    3. Connect your iPad A16 via USB or WiFi
+#    4. In AltStore: My Apps → + → select the downloaded IPA
+#    5. AltStore re-signs the app with your free Apple ID
+#
+#  NOTES:
+#    • No signing credentials or secrets are needed
+#    • Free Apple ID apps expire every 7 days
+#    • Re-run this workflow and reinstall when that happens
+#    • The workflow triggers on push to main, or manually
+# ──────────────────────────────────────────────────────────────
+
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Scribe/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_configuration:
+        description: 'Build Configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Debug
+          - Release
+
+env:
+  SCHEME: Scribe
+  PROJECT_DIR: Scribe
+  CONFIGURATION: ${{ github.event.inputs.build_configuration || 'Release' }}
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build Scribe IPA"
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      # ──────────────────────────────────────
+      #  1. Checkout
+      # ──────────────────────────────────────
+      - name: "📥 Checkout repository"
+        uses: actions/checkout@v4
+
+      # ──────────────────────────────────────
+      #  2. Select Xcode
+      # ──────────────────────────────────────
+      - name: "🔧 Select Xcode version"
+        run: |
+          echo "=== Available Xcode versions ==="
+          ls /Applications/ | grep Xcode || true
+
+          # Pick the latest Xcode available on the runner
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          
+          if [ -z "$XCODE_PATH" ]; then
+            echo "❌ No Xcode found!"
+            exit 1
+          fi
+          
+          echo "Using: $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+          
+          echo "=== Swift Version ==="
+          swift --version
+          
+          echo "=== Available SDKs ==="
+          xcodebuild -showsdks | grep -i ios
+
+      # ──────────────────────────────────────
+      #  3. Cache Homebrew
+      # ──────────────────────────────────────
+      - name: "📦 Cache Homebrew packages"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/xcodegen
+            /opt/homebrew/Cellar/xcodegen
+          key: brew-xcodegen-${{ runner.os }}-${{ runner.arch }}
+          restore-keys: brew-xcodegen-
+
+      # ──────────────────────────────────────
+      #  4. Install XcodeGen
+      # ──────────────────────────────────────
+      - name: "📐 Install XcodeGen"
+        run: |
+          if command -v xcodegen &>/dev/null; then
+            echo "XcodeGen already installed"
+          else
+            echo "Installing XcodeGen..."
+            brew install xcodegen
+          fi
+          xcodegen version
+
+      # ──────────────────────────────────────
+      #  5. Create Resources directory
+      # ──────────────────────────────────────
+      - name: "📁 Ensure directories exist"
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          mkdir -p Scribe/Resources
+          
+          # Create a placeholder if Resources is empty (XcodeGen needs it)
+          if [ -z "$(ls -A Scribe/Resources 2>/dev/null)" ]; then
+            echo '{}' > Scribe/Resources/placeholder.json
+          fi
+          
+          echo "=== Project structure ==="
+          find Scribe -type f | head -60
+          echo "..."
+          echo "Total files: $(find Scribe -type f | wc -l)"
+
+      # ──────────────────────────────────────
+      #  6. Generate Xcode project
+      # ──────────────────────────────────────
+      - name: "⚙️ Generate Xcode project"
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "=== Generating Xcode project from project.yml ==="
+          xcodegen generate --spec project.yml
+          
+          if [ ! -d "Scribe.xcodeproj" ]; then
+            echo "❌ Failed to generate Scribe.xcodeproj"
+            exit 1
+          fi
+          
+          echo "✅ Xcode project generated successfully"
+          
+          echo "=== Available schemes ==="
+          xcodebuild -project Scribe.xcodeproj -list
+
+      # ──────────────────────────────────────
+      #  7. Build the app
+      # ──────────────────────────────────────
+      - name: "🔨 Build for iOS Device (arm64)"
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "=== Building Scribe (${{ env.CONFIGURATION }}) ==="
+          
+          # Find the iOS SDK
+          SDK=$(xcodebuild -showsdks | grep iphoneos | tail -1 | awk '{print $NF}')
+          echo "Using SDK: $SDK"
+          
+          xcodebuild build \
+            -project Scribe.xcodeproj \
+            -scheme "${{ env.SCHEME }}" \
+            -configuration "${{ env.CONFIGURATION }}" \
+            -sdk "$SDK" \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            ARCHS="arm64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            2>&1 | tee build.log
+          
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "❌ BUILD FAILED (exit code: $BUILD_EXIT_CODE)"
+            echo ""
+            echo "=== Last 50 lines of build output ==="
+            tail -50 build.log
+            echo ""
+            echo "=== Errors ==="
+            grep -i "error:" build.log | head -20
+            exit $BUILD_EXIT_CODE
+          fi
+          
+          echo "✅ Build succeeded"
+
+      # ──────────────────────────────────────
+      #  8. Locate the .app bundle
+      # ──────────────────────────────────────
+      - name: "🔍 Locate built app"
+        id: locate_app
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "=== Searching for Scribe.app ==="
+          
+          # Search in DerivedData
+          APP_PATH=$(find build/DerivedData -name "Scribe.app" -type d \
+            -path "*/Release-iphoneos/*" 2>/dev/null | head -1)
+          
+          # Fallback: try Debug config
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find build/DerivedData -name "Scribe.app" -type d \
+              -path "*/Debug-iphoneos/*" 2>/dev/null | head -1)
+          fi
+          
+          # Fallback: any iphoneos
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find build/DerivedData -name "Scribe.app" -type d \
+              -path "*-iphoneos*" 2>/dev/null | head -1)
+          fi
+          
+          # Fallback: absolutely anywhere
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find build/DerivedData -name "Scribe.app" -type d 2>/dev/null | head -1)
+          fi
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ Could not find Scribe.app anywhere in DerivedData"
+            echo "=== DerivedData contents ==="
+            find build/DerivedData -name "*.app" -type d 2>/dev/null || echo "No .app found"
+            find build/DerivedData/Build/Products -type d -maxdepth 2 2>/dev/null || true
+            exit 1
+          fi
+          
+          echo "✅ Found: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_OUTPUT
+          
+          echo "=== App contents ==="
+          ls -la "$APP_PATH/"
+
+      # ──────────────────────────────────────
+      #  9. Package IPA
+      # ──────────────────────────────────────
+      - name: "📦 Create IPA"
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          APP_PATH="${{ steps.locate_app.outputs.APP_PATH }}"
+          
+          echo "=== Creating IPA from: $APP_PATH ==="
+          
+          # Create Payload directory (IPA standard structure)
+          mkdir -p build/ipa/Payload
+          cp -r "$APP_PATH" build/ipa/Payload/
+          
+          # Strip any code signatures (AltStore will re-sign)
+          rm -rf build/ipa/Payload/Scribe.app/_CodeSignature 2>/dev/null || true
+          rm -f build/ipa/Payload/Scribe.app/embedded.mobileprovision 2>/dev/null || true
+          
+          # Create IPA (it's a standard zip with .ipa extension)
+          cd build/ipa
+          zip -r -9 -q ../Scribe.ipa Payload/
+          cd ..
+          
+          IPA_SIZE=$(ls -lh Scribe.ipa | awk '{print $5}')
+          echo "✅ IPA created: Scribe.ipa ($IPA_SIZE)"
+          
+          # Verify the IPA
+          echo "=== IPA contents ==="
+          unzip -l Scribe.ipa | head -20
+
+      # ──────────────────────────────────────
+      #  10. Upload IPA artifact
+      # ──────────────────────────────────────
+      - name: "⬆️ Upload IPA"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "Scribe-${{ env.CONFIGURATION }}-${{ github.run_number }}"
+          path: ${{ env.PROJECT_DIR }}/build/Scribe.ipa
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0  # IPA is already compressed
+
+      # ──────────────────────────────────────
+      #  11. Upload build log on failure
+      # ──────────────────────────────────────
+      - name: "📋 Upload build log (on failure)"
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "build-log-${{ github.run_number }}"
+          path: ${{ env.PROJECT_DIR }}/build.log
+          retention-days: 14
+
+      # ──────────────────────────────────────
+      #  12. Job summary
+      # ──────────────────────────────────────
+      - name: "📝 Build summary"
+        if: always()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # Gather info
+          IPA_SIZE=""
+          if [ -f "build/Scribe.ipa" ]; then
+            IPA_SIZE=$(ls -lh build/Scribe.ipa | awk '{print $5}')
+          fi
+          
+          WARNINGS=""
+          if [ -f "build.log" ]; then
+            WARN_COUNT=$(grep -c "warning:" build.log 2>/dev/null || echo "0")
+            ERROR_COUNT=$(grep -c "error:" build.log 2>/dev/null || echo "0")
+            WARNINGS="$WARN_COUNT warnings, $ERROR_COUNT errors"
+          fi
+          
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY_EOF'
+          ## 📱 Scribe Build Summary
+          
+          SUMMARY_EOF
+          
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|:---|:---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Configuration** | ${{ env.CONFIGURATION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **IPA Size** | ${IPA_SIZE:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build** | ${WARNINGS:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run** | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`$(echo ${{ github.sha }} | cut -c1-8)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          
+          cat >> $GITHUB_STEP_SUMMARY << 'INSTALL_EOF'
+          
+          ---
+          
+          ### 📲 How to Install on iPad
+          
+          1. Download the **IPA** from the **Artifacts** section above
+          2. Make sure **AltServer** is running on your computer
+          3. Open **AltStore** on your iPad (connected via USB or same WiFi)
+          4. Go to **My Apps → +** → select the downloaded `.ipa` file
+          5. AltStore will re-sign the app with your free Apple ID and install it
+          
+          > ⚠️ **Free Apple ID limitation:** The app expires every **7 days**. 
+          > Just re-run this workflow and reinstall when it expires.
+          > You can also click **"Run workflow"** on the Actions tab to trigger a build anytime.
+          
+          INSTALL_EOF

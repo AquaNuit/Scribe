@@ -3,6 +3,7 @@
 
 import Foundation
 import OSLog
+import QuartzCore
 
 /// Tracks frame timings, memory usage, and drawing performance metrics
 final class PerformanceMonitor {

@@ -177,65 +177,9 @@ struct PageSettingsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                SwiftUI.Section("Title") {
-                    TextField("Page title", text: $title)
-                }
-                
-                SwiftUI.Section("Background") {
-                    ForEach(BackgroundStyle.allCases) { style in
-                        Button {
-                            selectedBackground = style
-                        } label: {
-                            HStack {
-                                Image(systemName: style.systemImage)
-                                    .frame(width: 24)
-                                    .foregroundStyle(.primary)
-                                
-                                Text(style.displayName)
-                                    .foregroundStyle(.primary)
-                                
-                                Spacer()
-                                
-                                if selectedBackground == style {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.accentColor)
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                SwiftUI.Section("Canvas Mode") {
-                    ForEach(CanvasMode.allCases) { mode in
-                        Button {
-                            selectedMode = mode
-                        } label: {
-                            HStack {
-                                Image(systemName: mode.systemImage)
-                                    .frame(width: 24)
-                                    .foregroundStyle(.primary)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(mode.displayName)
-                                        .foregroundStyle(.primary)
-                                    
-                                    Text(mode == .page
-                                         ? "Fixed dimensions with page boundaries"
-                                         : "Infinite canvas that grows as you draw")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                if selectedMode == mode {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.accentColor)
-                                }
-                            }
-                        }
-                    }
-                }
+                titleSection
+                backgroundSection
+                canvasModeSection
             }
             .navigationTitle("Page Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -255,6 +199,75 @@ struct PageSettingsSheet: View {
                 title = page.title
                 selectedBackground = page.backgroundStyle
                 selectedMode = page.canvasMode
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var titleSection: some View {
+        SwiftUI.Section("Title") {
+            TextField("Page title", text: $title)
+        }
+    }
+    
+    @ViewBuilder
+    private var backgroundSection: some View {
+        SwiftUI.Section("Background") {
+            ForEach(BackgroundStyle.allCases) { style in
+                Button {
+                    selectedBackground = style
+                } label: {
+                    HStack {
+                        Image(systemName: style.systemImage)
+                            .frame(width: 24)
+                            .foregroundStyle(.primary)
+                        
+                        Text(style.displayName)
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        if selectedBackground == style {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.accentColor)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var canvasModeSection: some View {
+        SwiftUI.Section("Canvas Mode") {
+            ForEach(CanvasMode.allCases) { mode in
+                Button {
+                    selectedMode = mode
+                } label: {
+                    HStack {
+                        Image(systemName: mode.systemImage)
+                            .frame(width: 24)
+                            .foregroundStyle(.primary)
+                        
+                        VStack(alignment: .leading) {
+                            Text(mode.displayName)
+                                .foregroundStyle(.primary)
+                            
+                            Text(mode == .page
+                                 ? "Fixed dimensions with page boundaries"
+                                 : "Infinite canvas that grows as you draw")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if selectedMode == mode {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.accentColor)
+                        }
+                    }
+                }
             }
         }
     }

@@ -31,101 +31,11 @@ struct CreateNotebookSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Title
-                SwiftUI.Section("Notebook Name") {
-                    TextField("Enter notebook title", text: $title)
-                        .font(.title3)
-                }
-                
-                // Emoji
-                SwiftUI.Section("Icon") {
-                    LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible()), count: 8),
-                        spacing: 12
-                    ) {
-                        ForEach(emojis, id: \.self) { emoji in
-                            Text(emoji)
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    selectedEmoji == emoji
-                                        ? Color.accentColor.opacity(0.2)
-                                        : Color.clear,
-                                    in: RoundedRectangle(cornerRadius: 10)
-                                )
-                                .overlay(
-                                    selectedEmoji == emoji
-                                        ? RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.accentColor, lineWidth: 2)
-                                        : nil
-                                )
-                                .onTapGesture {
-                                    selectedEmoji = emoji
-                                }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                
-                // Cover Color
-                SwiftUI.Section("Cover Color") {
-                    LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible()), count: 8),
-                        spacing: 12
-                    ) {
-                        ForEach(coverColors, id: \.self) { hex in
-                            Circle()
-                                .fill(Color(hex: hex) ?? .blue)
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    selectedColor == hex
-                                        ? Circle().strokeBorder(.white, lineWidth: 3)
-                                            .shadow(radius: 2)
-                                        : nil
-                                )
-                                .onTapGesture {
-                                    selectedColor = hex
-                                }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                
-                // Template
-                SwiftUI.Section("Default Page Template") {
-                    ForEach(Template.allBuiltIn) { template in
-                        Button {
-                            selectedTemplate = template
-                        } label: {
-                            HStack {
-                                Image(systemName: template.backgroundStyle.systemImage)
-                                    .frame(width: 24)
-                                    .foregroundStyle(.primary)
-                                
-                                Text(template.name)
-                                    .foregroundStyle(.primary)
-                                
-                                Spacer()
-                                
-                                if selectedTemplate.id == template.id {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.accentColor)
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Preview
-                SwiftUI.Section("Preview") {
-                    HStack {
-                        Spacer()
-                        NotebookCoverView(notebook: previewNotebook)
-                            .frame(width: 180)
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                }
+                titleSection
+                emojiSection
+                colorSection
+                templateSection
+                previewSection
             }
             .navigationTitle("New Notebook")
             .navigationBarTitleDisplayMode(.inline)
@@ -144,6 +54,112 @@ struct CreateNotebookSheet: View {
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var titleSection: some View {
+        SwiftUI.Section("Notebook Name") {
+            TextField("Enter notebook title", text: $title)
+                .font(.title3)
+        }
+    }
+    
+    @ViewBuilder
+    private var emojiSection: some View {
+        SwiftUI.Section("Icon") {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible()), count: 8),
+                spacing: 12
+            ) {
+                ForEach(emojis, id: \.self) { emoji in
+                    Text(emoji)
+                        .font(.title2)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            selectedEmoji == emoji
+                                ? Color.accentColor.opacity(0.2)
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 10)
+                        )
+                        .overlay(
+                            selectedEmoji == emoji
+                                ? RoundedRectangle(cornerRadius: 10)
+                                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                                : nil
+                        )
+                        .onTapGesture {
+                            selectedEmoji = emoji
+                        }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+    
+    @ViewBuilder
+    private var colorSection: some View {
+        SwiftUI.Section("Cover Color") {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible()), count: 8),
+                spacing: 12
+            ) {
+                ForEach(coverColors, id: \.self) { hex in
+                    Circle()
+                        .fill(Color(hex: hex) ?? .blue)
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            selectedColor == hex
+                                ? Circle().strokeBorder(.white, lineWidth: 3)
+                                    .shadow(radius: 2)
+                                : nil
+                        )
+                        .onTapGesture {
+                            selectedColor = hex
+                        }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+    
+    @ViewBuilder
+    private var templateSection: some View {
+        SwiftUI.Section("Default Page Template") {
+            ForEach(Template.allBuiltIn) { template in
+                Button {
+                    selectedTemplate = template
+                } label: {
+                    HStack {
+                        Image(systemName: template.backgroundStyle.systemImage)
+                            .frame(width: 24)
+                            .foregroundStyle(.primary)
+                        
+                        Text(template.name)
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        if selectedTemplate.id == template.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.accentColor)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var previewSection: some View {
+        SwiftUI.Section("Preview") {
+            HStack {
+                Spacer()
+                NotebookCoverView(notebook: previewNotebook)
+                    .frame(width: 180)
+                Spacer()
+            }
+            .listRowBackground(Color.clear)
         }
     }
     

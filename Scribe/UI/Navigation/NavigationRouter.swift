@@ -9,7 +9,7 @@ final class NavigationRouter {
     // MARK: - Navigation State
     
     /// Currently selected sidebar item
-    var selectedSidebarItem: SidebarItem = .allNotebooks
+    var selectedSidebarItem: SidebarItem? = .allNotebooks
     
     /// Currently selected notebook
     var selectedNotebook: Notebook?

@@ -64,10 +64,12 @@ final class PencilEngine {
         return 1.0 + (1.0 - normalizedTilt) * 3.0
     }
     
-    // MARK: - Predefined Pressure Curves
     
-    static let linear = PressureCurve(minWidthFactor: 0.5, maxWidthFactor: 1.5, gamma: 1.0, sensitivity: 1.0)
-    static let soft = PressureCurve(minWidthFactor: 0.4, maxWidthFactor: 1.3, gamma: 0.5, sensitivity: 1.2)
-    static let firm = PressureCurve(minWidthFactor: 0.2, maxWidthFactor: 1.8, gamma: 1.5, sensitivity: 0.8)
-    static let calligraphy = PressureCurve(minWidthFactor: 0.1, maxWidthFactor: 2.0, gamma: 0.6, sensitivity: 1.0)
+}
+
+extension PencilEngine.PressureCurve {
+    static let linear = PencilEngine.PressureCurve(minWidthFactor: 0.5, maxWidthFactor: 1.5, gamma: 1.0, sensitivity: 1.0)
+    static let soft = PencilEngine.PressureCurve(minWidthFactor: 0.4, maxWidthFactor: 1.3, gamma: 0.5, sensitivity: 1.2)
+    static let firm = PencilEngine.PressureCurve(minWidthFactor: 0.2, maxWidthFactor: 1.8, gamma: 1.5, sensitivity: 0.8)
+    static let calligraphy = PencilEngine.PressureCurve(minWidthFactor: 0.1, maxWidthFactor: 2.0, gamma: 0.6, sensitivity: 1.0)
 }

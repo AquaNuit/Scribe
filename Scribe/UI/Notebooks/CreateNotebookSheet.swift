@@ -125,24 +125,24 @@ struct CreateNotebookSheet: View {
     
     @ViewBuilder
     private var templateSection: some View {
-        SwiftUI.Section("Default Page Template") {
-            ForEach(Template.allBuiltIn, id: \.id) { template in
+        Section("Default Page Template") {
+            ForEach(Template.allBuiltIn, id: \.id) { (template: Template) in
                 Button {
                     selectedTemplate = template
                 } label: {
                     HStack {
                         Image(systemName: template.backgroundStyle.systemImage)
                             .frame(width: 24)
-                            .foregroundStyle(.primary)
+                            .foregroundColor(.primary)
                         
                         Text(template.name)
-                            .foregroundStyle(.primary)
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         if selectedTemplate.id == template.id {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.accentColor)
+                                .foregroundColor(.accentColor)
                         }
                     }
                 }

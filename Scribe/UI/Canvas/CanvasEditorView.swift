@@ -212,24 +212,24 @@ struct PageSettingsSheet: View {
     
     @ViewBuilder
     private var backgroundSection: some View {
-        SwiftUI.Section("Background") {
-            ForEach(BackgroundStyle.allCases, id: \.self) { style in
+        Section("Background") {
+            ForEach(BackgroundStyle.allCases, id: \.self) { (style: BackgroundStyle) in
                 Button {
                     selectedBackground = style
                 } label: {
                     HStack {
                         Image(systemName: style.systemImage)
                             .frame(width: 24)
-                            .foregroundStyle(.primary)
+                            .foregroundColor(.primary)
                         
                         Text(style.displayName)
-                            .foregroundStyle(.primary)
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         if selectedBackground == style {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.accentColor)
+                                .foregroundColor(.accentColor)
                         }
                     }
                 }
@@ -239,32 +239,32 @@ struct PageSettingsSheet: View {
     
     @ViewBuilder
     private var canvasModeSection: some View {
-        SwiftUI.Section("Canvas Mode") {
-            ForEach(CanvasMode.allCases, id: \.self) { mode in
+        Section("Canvas Mode") {
+            ForEach(CanvasMode.allCases, id: \.self) { (mode: CanvasMode) in
                 Button {
                     selectedMode = mode
                 } label: {
                     HStack {
                         Image(systemName: mode.systemImage)
                             .frame(width: 24)
-                            .foregroundStyle(.primary)
+                            .foregroundColor(.primary)
                         
                         VStack(alignment: .leading) {
                             Text(mode.displayName)
-                                .foregroundStyle(.primary)
+                                .foregroundColor(.primary)
                             
                             Text(mode == .page
                                  ? "Fixed dimensions with page boundaries"
                                  : "Infinite canvas that grows as you draw")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(.secondary)
                         }
                         
                         Spacer()
                         
                         if selectedMode == mode {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.accentColor)
+                                .foregroundColor(.accentColor)
                         }
                     }
                 }

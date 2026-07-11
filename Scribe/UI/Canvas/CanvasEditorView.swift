@@ -212,7 +212,7 @@ struct PageSettingsSheet: View {
     
     @ViewBuilder
     private var backgroundSection: some View {
-        Section("Background") {
+        SwiftUI.Section("Background") {
             ForEach(BackgroundStyle.allCases, id: \.self) { (style: BackgroundStyle) in
                 Button {
                     selectedBackground = style
@@ -239,7 +239,7 @@ struct PageSettingsSheet: View {
     
     @ViewBuilder
     private var canvasModeSection: some View {
-        Section("Canvas Mode") {
+        SwiftUI.Section("Canvas Mode") {
             ForEach(CanvasMode.allCases, id: \.self) { (mode: CanvasMode) in
                 Button {
                     selectedMode = mode

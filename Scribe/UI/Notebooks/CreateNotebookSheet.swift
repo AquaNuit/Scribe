@@ -125,7 +125,7 @@ struct CreateNotebookSheet: View {
     
     @ViewBuilder
     private var templateSection: some View {
-        Section("Default Page Template") {
+        SwiftUI.Section("Default Page Template") {
             ForEach(Template.allBuiltIn, id: \.id) { (template: Template) in
                 Button {
                     selectedTemplate = template

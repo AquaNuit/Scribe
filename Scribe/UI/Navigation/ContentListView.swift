@@ -45,6 +45,8 @@ struct ContentListView: View {
                 notebookGrid(archived, title: "Archive")
             case .tags, .trash:
                 notebookGrid(notebooks, title: "Notebooks")
+            case .none:
+                EmptyView()
             }
         }
         .searchable(text: $router.searchQuery, prompt: "Search notebooks")

@@ -26,9 +26,17 @@ struct CanvasEditorView: View {
                 canvasSize: page.canvasSize,
                 backgroundStyle: page.backgroundStyle,
                 template: templateForPage,
+                canvasMode: page.canvasMode,
+                appearance: page.canvasAppearance,
                 toolState: toolState,
                 onDrawingChanged: { newDrawing in
                     viewModel.handleDrawingChanged(newDrawing)
+                },
+                onStrokeBegan: {
+                    viewModel.strokeBegan()
+                },
+                onStrokeEnded: {
+                    viewModel.strokeEnded()
                 }
             )
             .ignoresSafeArea()
@@ -173,6 +181,7 @@ struct PageSettingsSheet: View {
     @State private var title: String = ""
     @State private var selectedBackground: BackgroundStyle = .blank
     @State private var selectedMode: CanvasMode = .page
+    @State private var selectedAppearance: CanvasAppearance = .system
     
     var body: some View {
         NavigationStack {
@@ -180,6 +189,7 @@ struct PageSettingsSheet: View {
                 titleSection
                 backgroundSection
                 canvasModeSection
+                appearanceSection
             }
             .navigationTitle("Page Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -199,6 +209,7 @@ struct PageSettingsSheet: View {
                 title = page.title
                 selectedBackground = page.backgroundStyle
                 selectedMode = page.canvasMode
+                selectedAppearance = page.canvasAppearance
             }
         }
     }
@@ -228,6 +239,33 @@ struct PageSettingsSheet: View {
                         Spacer()
                         
                         if selectedBackground == style {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var appearanceSection: some View {
+        SwiftUI.Section("Canvas Appearance") {
+            ForEach(CanvasAppearance.allCases, id: \.self) { (appearance: CanvasAppearance) in
+                Button {
+                    selectedAppearance = appearance
+                } label: {
+                    HStack {
+                        Image(systemName: appearance.systemImage)
+                            .frame(width: 24)
+                            .foregroundColor(.primary)
+                        
+                        Text(appearance.displayName)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        if selectedAppearance == appearance {
                             Image(systemName: "checkmark")
                                 .foregroundColor(.accentColor)
                         }
@@ -277,5 +315,6 @@ struct PageSettingsSheet: View {
         service.updateTitle(page, title: title)
         service.updateBackground(page, style: selectedBackground)
         service.updateCanvasMode(page, mode: selectedMode)
+        service.updateAppearance(page, appearance: selectedAppearance)
     }
 }

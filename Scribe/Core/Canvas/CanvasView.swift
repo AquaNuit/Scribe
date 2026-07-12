@@ -12,8 +12,12 @@ struct CanvasView: UIViewControllerRepresentable {
     let canvasSize: CGSize
     let backgroundStyle: BackgroundStyle
     let template: Template
+    let canvasMode: CanvasMode
+    let appearance: CanvasAppearance
     let toolState: ToolState
     let onDrawingChanged: (PKDrawing) -> Void
+    var onStrokeBegan: (() -> Void)?
+    var onStrokeEnded: (() -> Void)?
     
     func makeUIViewController(context: Context) -> CanvasViewController {
         let controller = CanvasViewController()
@@ -22,13 +26,23 @@ struct CanvasView: UIViewControllerRepresentable {
             drawing: drawing,
             canvasSize: canvasSize,
             backgroundStyle: backgroundStyle,
-            template: template
+            template: template,
+            canvasMode: canvasMode,
+            appearance: appearance
         )
         return controller
     }
     
     func updateUIViewController(_ controller: CanvasViewController, context: Context) {
         controller.updateTool(from: toolState)
+        
+        // Sync appearance if changed
+        controller.updateAppearance(appearance)
+        
+        // Sync canvas mode if changed
+        if controller.configuredMode != canvasMode {
+            controller.updateCanvasMode(canvasMode, canvasSize: canvasSize)
+        }
         
         // Only update drawing if it changed externally (not from user input)
         if !isDrawing {
@@ -56,10 +70,12 @@ struct CanvasView: UIViewControllerRepresentable {
         
         func canvasDidBeginDrawing() {
             parent.isDrawing = true
+            parent.onStrokeBegan?()
         }
         
         func canvasDidEndDrawing() {
             parent.isDrawing = false
+            parent.onStrokeEnded?()
         }
     }
 }

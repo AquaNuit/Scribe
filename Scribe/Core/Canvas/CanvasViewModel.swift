@@ -21,7 +21,9 @@ final class CanvasViewModel {
     /// Auto-save timer
     private var saveTimer: Timer?
     private var undoManager = ScribeUndoManager()
-    private var modelContext: Any?
+    
+    /// Snapshot captured at the start of a stroke for per-stroke undo batching
+    private var strokeStartDrawing: PKDrawing?
     
     // MARK: - Constants
     
@@ -33,29 +35,47 @@ final class CanvasViewModel {
         self.currentPage = page
         self.drawing = page.drawing ?? PKDrawing()
         self.isDirty = false
+        self.strokeStartDrawing = nil
         undoManager.clear()
         updateUndoState()
     }
     
     func handleDrawingChanged(_ newDrawing: PKDrawing) {
-        let oldDrawing = self.drawing
+        // Update the drawing without recording undo on every incremental change
+        self.drawing = newDrawing
+        self.isDirty = true
+        scheduleAutoSave()
+    }
+    
+    /// Called when the user begins a stroke — captures the pre-stroke state
+    func strokeBegan() {
+        isDrawing = true
+        strokeStartDrawing = drawing
+    }
+    
+    /// Called when the user ends a stroke — records a single undo entry for the entire stroke
+    func strokeEnded() {
+        isDrawing = false
         
-        // Record for undo
+        guard let preStrokeDrawing = strokeStartDrawing else { return }
+        let postStrokeDrawing = self.drawing
+        
+        // Only record if the drawing actually changed
+        guard preStrokeDrawing != postStrokeDrawing else { return }
+        
         undoManager.record(
             undo: { [weak self] in
-                self?.drawing = oldDrawing
+                self?.drawing = preStrokeDrawing
                 self?.isDirty = true
             },
             redo: { [weak self] in
-                self?.drawing = newDrawing
+                self?.drawing = postStrokeDrawing
                 self?.isDirty = true
             }
         )
         
-        self.drawing = newDrawing
-        self.isDirty = true
+        strokeStartDrawing = nil
         updateUndoState()
-        scheduleAutoSave()
     }
     
     func save() {
@@ -66,11 +86,19 @@ final class CanvasViewModel {
     }
     
     func undo() {
+        // If currently drawing, finish the stroke first
+        if isDrawing {
+            strokeEnded()
+        }
         undoManager.undo()
         updateUndoState()
     }
     
     func redo() {
+        // If currently drawing, finish the stroke first
+        if isDrawing {
+            strokeEnded()
+        }
         undoManager.redo()
         updateUndoState()
     }

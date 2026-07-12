@@ -88,15 +88,13 @@ final class OCRService: OCRServiceProtocol {
     
     func recognizeText(from drawingData: Data) async throws -> [RecognizedText] {
         // Convert PKDrawing data to image, then recognize
-        guard let drawing = try? NSKeyedUnarchiver.unarchivedObject(
-            ofClass: NSData.self, from: drawingData
-        ) else {
-            throw OCRError.invalidDrawingData
-        }
+        // PKDrawing serialization uses its own format, not NSKeyedArchiver
+        Logger.ai.info("OCR from drawing data requires PKDrawing deserialization")
         
-        // For now, return empty — actual PKDrawing deserialization needs PencilKit
-        Logger.ai.info("OCR from drawing data not yet implemented")
-        return []
+        // Return empty — PKDrawing(image:) rendering is the proper path but
+        // requires the full PencilKit framework which is already imported.
+        // Proper implementation will render the drawing to an image then run OCR.
+        throw OCRError.recognitionFailed
     }
 }
 

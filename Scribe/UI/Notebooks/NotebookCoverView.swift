@@ -86,7 +86,6 @@ struct NotebookCoverView: View {
                 .fill(.background)
                 .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
         .contentShape(RoundedRectangle(cornerRadius: 16))
     }
 }

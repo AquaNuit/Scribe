@@ -80,6 +80,12 @@ final class PageService {
         try? modelContext.save()
     }
     
+    func updateAppearance(_ page: Page, appearance: CanvasAppearance) {
+        page.canvasAppearance = appearance
+        page.touch()
+        try? modelContext.save()
+    }
+    
     func reorderPages(in section: Section, fromOffsets: IndexSet, toOffset: Int) {
         var pages = section.sortedPages
         pages.move(fromOffsets: fromOffsets, toOffset: toOffset)

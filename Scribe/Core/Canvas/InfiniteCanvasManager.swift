@@ -21,7 +21,7 @@ final class InfiniteCanvasManager {
     private let minimumSize = CGSize(width: 768, height: 1024)
     
     /// Maximum canvas size to prevent runaway memory
-    private let maximumSize = CGSize(width: 50000, height: 50000)
+    let maximumSize = CGSize(width: 50000, height: 50000)
     
     // MARK: - Init
     

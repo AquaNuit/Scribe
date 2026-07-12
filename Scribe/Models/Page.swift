@@ -25,6 +25,9 @@ final class Page {
     /// "page" or "whiteboard"
     var canvasModeRaw: String
     
+    /// Canvas appearance override (system / light / dark)
+    var canvasAppearanceRaw: String
+    
     /// Canvas dimensions in points
     var canvasWidth: Double
     var canvasHeight: Double
@@ -52,6 +55,7 @@ final class Page {
     @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.page)
     var mediaAttachments: [MediaAttachment]?
     
+    @Relationship(inverse: \Tag.pages)
     var tags: [Tag]?
     
     // MARK: - Computed Properties
@@ -64,6 +68,11 @@ final class Page {
     var canvasMode: CanvasMode {
         get { CanvasMode(rawValue: canvasModeRaw) ?? .page }
         set { canvasModeRaw = newValue.rawValue }
+    }
+    
+    var canvasAppearance: CanvasAppearance {
+        get { CanvasAppearance(rawValue: canvasAppearanceRaw) ?? .system }
+        set { canvasAppearanceRaw = newValue.rawValue }
     }
     
     var canvasSize: CGSize {
@@ -97,6 +106,7 @@ final class Page {
         self.title = title
         self.backgroundStyleRaw = backgroundStyle.rawValue
         self.canvasModeRaw = canvasMode.rawValue
+        self.canvasAppearanceRaw = CanvasAppearance.system.rawValue
         self.canvasWidth = 768
         self.canvasHeight = 1024
         self.sortOrder = 0

@@ -1,5 +1,7 @@
 // CanvasBackgroundView.swift
 // Scribe — Renders canvas background patterns (grid, dots, lines, etc.)
+// Pinned to all 4 edges of the PKCanvasView content layout guide so it
+// expands with the content in whiteboard mode.
 
 import UIKit
 
@@ -8,23 +10,72 @@ final class CanvasBackgroundView: UIView {
     // MARK: - Properties
     
     private var template: Template = .blank
-    private var isDarkMode: Bool = false
+    private var appearance: CanvasAppearance = .system
     
     private var lineColor: UIColor = UIColor.systemGray4
     private var backgroundColor_: UIColor = .white
+    private var isDarkMode: Bool = false
     
     // MARK: - Configuration
     
-    func configure(with template: Template, isDarkMode: Bool) {
+    /// Configure the background with a template and appearance override
+    /// - Parameters:
+    ///   - template: The page template (defines grid/lines/dots etc.)
+    ///   - appearance: Light/dark/system appearance override
+    ///   - traitCollection: The trait collection to use for system appearance detection
+    func configure(with template: Template, appearance: CanvasAppearance, traitCollection: UITraitCollection) {
         self.template = template
-        self.isDarkMode = isDarkMode
+        self.appearance = appearance
+        applyCurrentAppearance(with: traitCollection)
+    }
+    
+    /// Update only the appearance (when user toggles light/dark)
+    func updateAppearance(_ appearance: CanvasAppearance, traitCollection: UITraitCollection) {
+        self.appearance = appearance
+        applyCurrentAppearance(with: traitCollection)
+    }
+    
+    /// Resolve and apply colors from current template + appearance
+    private func applyCurrentAppearance(with traitCollection: UITraitCollection) {
+        let systemDark = traitCollection.userInterfaceStyle == .dark
+        self.isDarkMode = resolveDarkMode(appearance: appearance, systemDark: systemDark)
         
         self.lineColor = UIColor(hex: template.lineColor)?
             .withAlphaComponent(isDarkMode ? 0.25 : 0.35) ?? .systemGray4
-        self.backgroundColor_ = isDarkMode
-            ? UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
-            : UIColor(red: 1.0, green: 0.99, blue: 0.97, alpha: 1.0)
         
+        // When the user explicitly picks Light or Dark, use pure colors.
+        // In .system mode, use warm paper-like tones.
+        switch appearance {
+        case .dark:
+            backgroundColor_ = UIColor.black
+        case .light:
+            backgroundColor_ = UIColor.white
+        case .system:
+            if isDarkMode {
+                backgroundColor_ = UIColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
+            } else {
+                backgroundColor_ = UIColor(red: 1.0, green: 0.99, blue: 0.97, alpha: 1.0)
+            }
+        }
+        
+        setNeedsDisplay()
+    }
+    
+    // MARK: - Appearance Resolution
+    
+    private func resolveDarkMode(appearance: CanvasAppearance, systemDark: Bool) -> Bool {
+        switch appearance {
+        case .system:  return systemDark
+        case .light:   return false
+        case .dark:    return true
+        }
+    }
+    
+    // MARK: - Layout
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Redraw when the view's bounds change (e.g., content expansion)
         setNeedsDisplay()
     }
     
@@ -33,28 +84,28 @@ final class CanvasBackgroundView: UIView {
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
         
-        // Fill background
+        // Fill entire bounds with background color
         context.setFillColor(backgroundColor_.cgColor)
-        context.fill(rect)
+        context.fill(bounds)
         
-        // Draw pattern
+        // Draw pattern across the entire view bounds
         switch template.backgroundStyle {
         case .blank:
             break
         case .lined:
-            drawLines(in: rect, context: context)
+            drawLines(in: bounds, context: context)
         case .grid:
-            drawGrid(in: rect, context: context)
+            drawGrid(in: bounds, context: context)
         case .dotGrid:
-            drawDotGrid(in: rect, context: context)
+            drawDotGrid(in: bounds, context: context)
         case .musicStaff:
-            drawMusicStaff(in: rect, context: context)
+            drawMusicStaff(in: bounds, context: context)
         case .engineeringGraph:
-            drawEngineeringGraph(in: rect, context: context)
+            drawEngineeringGraph(in: bounds, context: context)
         case .cornell:
-            drawCornellLayout(in: rect, context: context)
+            drawCornellLayout(in: bounds, context: context)
         case .isometric:
-            drawIsometricGrid(in: rect, context: context)
+            drawIsometricGrid(in: bounds, context: context)
         }
     }
     
@@ -68,9 +119,9 @@ final class CanvasBackgroundView: UIView {
         context.setLineWidth(0.5)
         
         var y = topMargin
-        while y < rect.height {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        while y < rect.maxY {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += spacing
         }
         context.strokePath()
@@ -79,8 +130,8 @@ final class CanvasBackgroundView: UIView {
         let marginColor = UIColor.systemRed.withAlphaComponent(isDarkMode ? 0.2 : 0.3)
         context.setStrokeColor(marginColor.cgColor)
         context.setLineWidth(1.0)
-        context.move(to: CGPoint(x: 72, y: 0))
-        context.addLine(to: CGPoint(x: 72, y: rect.height))
+        context.move(to: CGPoint(x: rect.minX + 72, y: rect.minY))
+        context.addLine(to: CGPoint(x: rect.minX + 72, y: rect.maxY))
         context.strokePath()
     }
     
@@ -91,18 +142,18 @@ final class CanvasBackgroundView: UIView {
         context.setLineWidth(0.5)
         
         // Vertical lines
-        var x: CGFloat = 0
-        while x <= rect.width {
-            context.move(to: CGPoint(x: x, y: 0))
-            context.addLine(to: CGPoint(x: x, y: rect.height))
+        var x: CGFloat = rect.minX
+        while x <= rect.maxX {
+            context.move(to: CGPoint(x: x, y: rect.minY))
+            context.addLine(to: CGPoint(x: x, y: rect.maxY))
             x += spacing
         }
         
         // Horizontal lines
-        var y: CGFloat = 0
-        while y <= rect.height {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        var y: CGFloat = rect.minY
+        while y <= rect.maxY {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += spacing
         }
         
@@ -115,10 +166,10 @@ final class CanvasBackgroundView: UIView {
         
         context.setFillColor(lineColor.cgColor)
         
-        var x: CGFloat = spacing
-        while x < rect.width {
-            var y: CGFloat = spacing
-            while y < rect.height {
+        var x: CGFloat = rect.minX + spacing
+        while x < rect.maxX {
+            var y: CGFloat = rect.minY + spacing
+            while y < rect.maxY {
                 context.fillEllipse(in: CGRect(
                     x: x - dotRadius,
                     y: y - dotRadius,
@@ -140,12 +191,12 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.cgColor)
         context.setLineWidth(0.8)
         
-        var staffY = topMargin
-        while staffY < rect.height - CGFloat(linesPerStaff) * staffSpacing {
+        var staffY = rect.minY + topMargin
+        while staffY < rect.maxY - CGFloat(linesPerStaff) * staffSpacing {
             for line in 0..<linesPerStaff {
                 let y = staffY + CGFloat(line) * staffSpacing
-                context.move(to: CGPoint(x: 40, y: y))
-                context.addLine(to: CGPoint(x: rect.width - 40, y: y))
+                context.move(to: CGPoint(x: rect.minX + 40, y: y))
+                context.addLine(to: CGPoint(x: rect.maxX - 40, y: y))
             }
             staffY += CGFloat(linesPerStaff) * staffSpacing + staffGroupSpacing
         }
@@ -161,17 +212,17 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.withAlphaComponent(0.15).cgColor)
         context.setLineWidth(0.3)
         
-        var x: CGFloat = 0
-        while x <= rect.width {
-            context.move(to: CGPoint(x: x, y: 0))
-            context.addLine(to: CGPoint(x: x, y: rect.height))
+        var x: CGFloat = rect.minX
+        while x <= rect.maxX {
+            context.move(to: CGPoint(x: x, y: rect.minY))
+            context.addLine(to: CGPoint(x: x, y: rect.maxY))
             x += smallSpacing
         }
         
-        var y: CGFloat = 0
-        while y <= rect.height {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        var y: CGFloat = rect.minY
+        while y <= rect.maxY {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += smallSpacing
         }
         context.strokePath()
@@ -180,17 +231,17 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.withAlphaComponent(0.4).cgColor)
         context.setLineWidth(0.7)
         
-        x = 0
-        while x <= rect.width {
-            context.move(to: CGPoint(x: x, y: 0))
-            context.addLine(to: CGPoint(x: x, y: rect.height))
+        x = rect.minX
+        while x <= rect.maxX {
+            context.move(to: CGPoint(x: x, y: rect.minY))
+            context.addLine(to: CGPoint(x: x, y: rect.maxY))
             x += largeSpacing
         }
         
-        y = 0
-        while y <= rect.height {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        y = rect.minY
+        while y <= rect.maxY {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += largeSpacing
         }
         context.strokePath()
@@ -206,10 +257,10 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.cgColor)
         context.setLineWidth(0.5)
         
-        var y = topMargin
-        while y < rect.height - summaryHeight {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        var y = rect.minY + topMargin
+        while y < rect.maxY - summaryHeight {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += spacing
         }
         context.strokePath()
@@ -219,13 +270,13 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(dividerColor.cgColor)
         context.setLineWidth(1.5)
         
-        context.move(to: CGPoint(x: cueColumnWidth, y: 0))
-        context.addLine(to: CGPoint(x: cueColumnWidth, y: rect.height - summaryHeight))
+        context.move(to: CGPoint(x: rect.minX + cueColumnWidth, y: rect.minY))
+        context.addLine(to: CGPoint(x: rect.minX + cueColumnWidth, y: rect.maxY - summaryHeight))
         context.strokePath()
         
         // Summary area divider
-        context.move(to: CGPoint(x: 0, y: rect.height - summaryHeight))
-        context.addLine(to: CGPoint(x: rect.width, y: rect.height - summaryHeight))
+        context.move(to: CGPoint(x: rect.minX, y: rect.maxY - summaryHeight))
+        context.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - summaryHeight))
         context.strokePath()
     }
     
@@ -237,10 +288,10 @@ final class CanvasBackgroundView: UIView {
         context.setLineWidth(0.4)
         
         // Horizontal lines
-        var y: CGFloat = 0
-        while y <= rect.height {
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: rect.width, y: y))
+        var y: CGFloat = rect.minY
+        while y <= rect.maxY {
+            context.move(to: CGPoint(x: rect.minX, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX, y: y))
             y += height
         }
         
@@ -248,16 +299,16 @@ final class CanvasBackgroundView: UIView {
         let maxDiag = rect.width + rect.height
         var offset: CGFloat = -maxDiag
         while offset <= maxDiag {
-            context.move(to: CGPoint(x: offset, y: 0))
-            context.addLine(to: CGPoint(x: offset + rect.height / tan(.pi / 3), y: rect.height))
+            context.move(to: CGPoint(x: rect.minX + offset, y: rect.minY))
+            context.addLine(to: CGPoint(x: rect.minX + offset + rect.height / tan(.pi / 3), y: rect.maxY))
             offset += spacing
         }
         
         // Diagonal lines (top-right to bottom-left)
         offset = -maxDiag
         while offset <= maxDiag {
-            context.move(to: CGPoint(x: offset, y: 0))
-            context.addLine(to: CGPoint(x: offset - rect.height / tan(.pi / 3), y: rect.height))
+            context.move(to: CGPoint(x: rect.minX + offset, y: rect.minY))
+            context.addLine(to: CGPoint(x: rect.minX + offset - rect.height / tan(.pi / 3), y: rect.maxY))
             offset += spacing
         }
         

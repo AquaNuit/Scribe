@@ -236,16 +236,8 @@ struct NotebookDetailView: View {
     
     private func createSection() {
         let title = newSectionTitle.isEmpty ? "Section \(notebook.sortedSections.count + 1)" : newSectionTitle
-        let section = Section(title: title, sortOrder: notebook.sortedSections.count)
-        section.notebook = notebook
-        
-        var sections = notebook.sections ?? []
-        sections.append(section)
-        notebook.sections = sections
-        
-        modelContext.insert(section)
-        try? modelContext.save()
-        
+        let service = SectionService(modelContext: modelContext)
+        service.createSection(in: notebook, title: title)
         newSectionTitle = ""
     }
 }

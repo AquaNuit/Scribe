@@ -47,7 +47,6 @@ env:
   SCHEME: Scribe
   PROJECT_DIR: .
   CONFIGURATION: ${{ github.event.inputs.build_configuration || 'Release' }}
-  PATH: /opt/homebrew/bin:$PATH  # Ensure Homebrew tools (like xcodegen) are findable
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -113,6 +112,8 @@ jobs:
       # ──────────────────────────────────────
       - name: "📐 Install XcodeGen"
         run: |
+          export PATH="/opt/homebrew/bin:$PATH"
+          
           if command -v xcodegen &>/dev/null; then
             echo "XcodeGen already in PATH — checking if functional..."
             if ! xcodegen version &>/dev/null; then
@@ -152,6 +153,7 @@ jobs:
       - name: "⚙️ Generate Xcode project"
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          export PATH="/opt/homebrew/bin:$PATH"
           echo "=== Generating Xcode project from project.yml ==="
           xcodegen generate --spec project.yml
           

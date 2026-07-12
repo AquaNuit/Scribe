@@ -47,6 +47,7 @@ env:
   SCHEME: Scribe
   PROJECT_DIR: .
   CONFIGURATION: ${{ github.event.inputs.build_configuration || 'Release' }}
+  PATH: /opt/homebrew/bin:$PATH  # Ensure Homebrew tools (like xcodegen) are findable
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -113,9 +114,16 @@ jobs:
       - name: "📐 Install XcodeGen"
         run: |
           if command -v xcodegen &>/dev/null; then
-            echo "XcodeGen already installed"
+            echo "XcodeGen already in PATH — checking if functional..."
+            if ! xcodegen version &>/dev/null; then
+              echo "XcodeGen found but broken — re-linking..."
+              brew link --overwrite xcodegen
+            fi
+          elif brew list xcodegen &>/dev/null; then
+            echo "XcodeGen installed but not linked — linking..."
+            brew link --overwrite xcodegen
           else
-            echo "Installing XcodeGen..."
+            echo "Installing XcodeGen via Homebrew..."
             brew install xcodegen
           fi
           xcodegen version

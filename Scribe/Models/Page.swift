@@ -55,7 +55,7 @@ final class Page {
     @Relationship(deleteRule: .cascade, inverse: \MediaAttachment.page)
     var mediaAttachments: [MediaAttachment]?
     
-    @Relationship(inverse: \Tag.pages)
+    // Inverse inferred from Tag.pages relationship
     var tags: [Tag]?
     
     // MARK: - Computed Properties

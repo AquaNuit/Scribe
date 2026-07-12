@@ -105,13 +105,11 @@ final class CanvasViewController: UIViewController {
             canvasView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         
-        // Observe content size changes to keep background in sync
+        // Observe content size changes to keep background drawing in sync.
+        // Note: worldBounds is managed internally by InfiniteCanvasManager.expandIfNeeded().
         contentSizeObservation = canvasView.observe(\.contentSize, options: [.new]) { [weak self] _, change in
-            guard let self = self, let newSize = change.newValue else { return }
+            guard let self = self else { return }
             self.backgroundView?.setNeedsDisplay()
-            if self.currentCanvasMode == .whiteboard {
-                self.infiniteManager.worldBounds = CGRect(origin: .zero, size: newSize)
-            }
         }
     }
     

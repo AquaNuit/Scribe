@@ -1,7 +1,6 @@
 // CanvasBackgroundView.swift
 // Scribe — Renders canvas background patterns (grid, dots, lines, etc.)
-// Pinned to all 4 edges of the PKCanvasView content layout guide so it
-// expands with the content in whiteboard mode.
+// Frame is manually managed by CanvasViewController to exactly match contentSize.
 
 import UIKit
 
@@ -13,70 +12,55 @@ final class CanvasBackgroundView: UIView {
     private var appearance: CanvasAppearance = .system
     
     private var lineColor: UIColor = UIColor.systemGray4
-    private var backgroundColor_: UIColor = .white
+    private var resolvedBgColor: UIColor = .white
     private var isDarkMode: Bool = false
+    
+    /// The currently resolved background color, accessible from outside
+    var resolvedBackgroundColor: UIColor { resolvedBgColor }
     
     // MARK: - Configuration
     
-    /// Configure the background with a template and appearance override
-    /// - Parameters:
-    ///   - template: The page template (defines grid/lines/dots etc.)
-    ///   - appearance: Light/dark/system appearance override
-    ///   - traitCollection: The trait collection to use for system appearance detection
     func configure(with template: Template, appearance: CanvasAppearance, traitCollection: UITraitCollection) {
         self.template = template
         self.appearance = appearance
-        applyCurrentAppearance(with: traitCollection)
+        resolveColors(with: traitCollection)
+        setNeedsDisplay()
     }
     
-    /// Update only the appearance (when user toggles light/dark)
     func updateAppearance(_ appearance: CanvasAppearance, traitCollection: UITraitCollection) {
         self.appearance = appearance
-        applyCurrentAppearance(with: traitCollection)
+        resolveColors(with: traitCollection)
+        setNeedsDisplay()
     }
     
-    /// Resolve and apply colors from current template + appearance
-    private func applyCurrentAppearance(with traitCollection: UITraitCollection) {
+    // MARK: - Color Resolution
+    
+    private func resolveColors(with traitCollection: UITraitCollection) {
         let systemDark = traitCollection.userInterfaceStyle == .dark
-        self.isDarkMode = resolveDarkMode(appearance: appearance, systemDark: systemDark)
         
-        self.lineColor = UIColor(hex: template.lineColor)?
-            .withAlphaComponent(isDarkMode ? 0.25 : 0.35) ?? .systemGray4
+        switch appearance {
+        case .system: isDarkMode = systemDark
+        case .light:  isDarkMode = false
+        case .dark:   isDarkMode = true
+        }
         
-        // When the user explicitly picks Light or Dark, use pure colors.
-        // In .system mode, use warm paper-like tones.
+        // Resolve line color from template
+        let baseLineColor = UIColor(hex: template.lineColor) ?? .systemGray4
+        lineColor = baseLineColor.withAlphaComponent(isDarkMode ? 0.3 : 0.4)
+        
+        // Resolve background color
         switch appearance {
         case .dark:
-            backgroundColor_ = UIColor.black
+            resolvedBgColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
         case .light:
-            backgroundColor_ = UIColor.white
+            resolvedBgColor = UIColor(red: 1.0, green: 0.995, blue: 0.98, alpha: 1.0)
         case .system:
             if isDarkMode {
-                backgroundColor_ = UIColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
+                resolvedBgColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
             } else {
-                backgroundColor_ = UIColor(red: 1.0, green: 0.99, blue: 0.97, alpha: 1.0)
+                resolvedBgColor = UIColor(red: 1.0, green: 0.995, blue: 0.98, alpha: 1.0)
             }
         }
-        
-        setNeedsDisplay()
-    }
-    
-    // MARK: - Appearance Resolution
-    
-    private func resolveDarkMode(appearance: CanvasAppearance, systemDark: Bool) -> Bool {
-        switch appearance {
-        case .system:  return systemDark
-        case .light:   return false
-        case .dark:    return true
-        }
-    }
-    
-    // MARK: - Layout
-    
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // Redraw when the view's bounds change (e.g., content expansion)
-        setNeedsDisplay()
     }
     
     // MARK: - Drawing
@@ -84,11 +68,11 @@ final class CanvasBackgroundView: UIView {
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
         
-        // Fill entire bounds with background color
-        context.setFillColor(backgroundColor_.cgColor)
+        // Fill entire bounds with resolved background color
+        context.setFillColor(resolvedBgColor.cgColor)
         context.fill(bounds)
         
-        // Draw pattern across the entire view bounds
+        // Draw the appropriate pattern
         switch template.backgroundStyle {
         case .blank:
             break
@@ -127,7 +111,9 @@ final class CanvasBackgroundView: UIView {
         context.strokePath()
         
         // Left margin line
-        let marginColor = UIColor.systemRed.withAlphaComponent(isDarkMode ? 0.2 : 0.3)
+        let marginColor = isDarkMode
+            ? UIColor.systemRed.withAlphaComponent(0.2)
+            : UIColor.systemRed.withAlphaComponent(0.3)
         context.setStrokeColor(marginColor.cgColor)
         context.setLineWidth(1.0)
         context.move(to: CGPoint(x: rect.minX + 72, y: rect.minY))
@@ -141,7 +127,6 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.cgColor)
         context.setLineWidth(0.5)
         
-        // Vertical lines
         var x: CGFloat = rect.minX
         while x <= rect.maxX {
             context.move(to: CGPoint(x: x, y: rect.minY))
@@ -149,7 +134,6 @@ final class CanvasBackgroundView: UIView {
             x += spacing
         }
         
-        // Horizontal lines
         var y: CGFloat = rect.minY
         while y <= rect.maxY {
             context.move(to: CGPoint(x: rect.minX, y: y))
@@ -227,7 +211,7 @@ final class CanvasBackgroundView: UIView {
         }
         context.strokePath()
         
-        // Large grid (every 5th line)
+        // Large grid
         context.setStrokeColor(lineColor.withAlphaComponent(0.4).cgColor)
         context.setLineWidth(0.7)
         
@@ -253,7 +237,6 @@ final class CanvasBackgroundView: UIView {
         let summaryHeight: CGFloat = 160
         let topMargin: CGFloat = 80
         
-        // Draw lines in the note-taking area
         context.setStrokeColor(lineColor.cgColor)
         context.setLineWidth(0.5)
         
@@ -265,7 +248,6 @@ final class CanvasBackgroundView: UIView {
         }
         context.strokePath()
         
-        // Cue column divider
         let dividerColor = lineColor.withAlphaComponent(0.6)
         context.setStrokeColor(dividerColor.cgColor)
         context.setLineWidth(1.5)
@@ -274,7 +256,6 @@ final class CanvasBackgroundView: UIView {
         context.addLine(to: CGPoint(x: rect.minX + cueColumnWidth, y: rect.maxY - summaryHeight))
         context.strokePath()
         
-        // Summary area divider
         context.move(to: CGPoint(x: rect.minX, y: rect.maxY - summaryHeight))
         context.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - summaryHeight))
         context.strokePath()
@@ -287,7 +268,6 @@ final class CanvasBackgroundView: UIView {
         context.setStrokeColor(lineColor.withAlphaComponent(0.25).cgColor)
         context.setLineWidth(0.4)
         
-        // Horizontal lines
         var y: CGFloat = rect.minY
         while y <= rect.maxY {
             context.move(to: CGPoint(x: rect.minX, y: y))
@@ -295,7 +275,6 @@ final class CanvasBackgroundView: UIView {
             y += height
         }
         
-        // Diagonal lines (top-left to bottom-right)
         let maxDiag = rect.width + rect.height
         var offset: CGFloat = -maxDiag
         while offset <= maxDiag {
@@ -304,7 +283,6 @@ final class CanvasBackgroundView: UIView {
             offset += spacing
         }
         
-        // Diagonal lines (top-right to bottom-left)
         offset = -maxDiag
         while offset <= maxDiag {
             context.move(to: CGPoint(x: rect.minX + offset, y: rect.minY))

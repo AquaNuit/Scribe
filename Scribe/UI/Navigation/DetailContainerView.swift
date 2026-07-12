@@ -28,19 +28,39 @@ struct DetailContainerView: View {
     }
     
     private var emptyDetail: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "pencil.and.scribble")
-                .font(.system(size: 64))
-                .foregroundStyle(.tertiary)
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                ScribeTheme.accentColor.opacity(0.12),
+                                ScribeTheme.accentColor.opacity(0.04)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                
+                Image(systemName: "pencil.and.scribble")
+                    .font(.system(size: 48))
+                    .foregroundStyle(ScribeTheme.accentGradient)
+                    .symbolRenderingMode(.hierarchical)
+            }
             
-            Text("Select a Notebook")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            
-            Text("Choose a notebook from the list or create a new one")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 6) {
+                Text("Select a Notebook")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.primary)
+                
+                Text("Choose a notebook from the list or create a new one")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

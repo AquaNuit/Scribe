@@ -26,12 +26,12 @@ final class CanvasViewController: UIViewController {
     
     private var currentCanvasSize: CGSize = CGSize(width: 768, height: 1024)
     private var currentTemplate: Template = .blank
-    private var currentCanvasMode: CanvasMode = .page
+    private(set) var configuredMode: CanvasMode = .page
     private var currentAppearance: CanvasAppearance = .system
     private var lastKnownDrawing: PKDrawing?
     
-    /// Expose the currently configured mode so SwiftUI can detect changes
-    private(set) var configuredMode: CanvasMode = .page
+    /// Callback so the SwiftUI layer can match the canvas background color
+    var onBackgroundColorResolved: ((UIColor) -> Void)?
     
     /// Pending configuration — applied once the view loads
     private var pendingDrawing: PKDrawing?
@@ -52,6 +52,7 @@ final class CanvasViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .systemBackground
         setupCanvas()
         setupBackground()
         applyPendingConfiguration()
@@ -64,13 +65,14 @@ final class CanvasViewController: UIViewController {
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        backgroundView?.setNeedsDisplay()
+        syncBackgroundFrame()
     }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
             backgroundView?.updateAppearance(currentAppearance, traitCollection: traitCollection)
+            notifyBackgroundColor()
         }
     }
     
@@ -105,30 +107,34 @@ final class CanvasViewController: UIViewController {
             canvasView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         
-        // Observe content size changes to keep background drawing in sync.
-        // Note: worldBounds is managed internally by InfiniteCanvasManager.expandIfNeeded().
-        contentSizeObservation = canvasView.observe(\.contentSize, options: [.new]) { [weak self] _, change in
+        // Observe content size changes to keep background in sync
+        contentSizeObservation = canvasView.observe(\.contentSize, options: [.new]) { [weak self] _, _ in
             guard let self = self else { return }
-            self.backgroundView?.setNeedsDisplay()
+            self.syncBackgroundFrame()
         }
     }
     
     private func setupBackground() {
         backgroundView = CanvasBackgroundView(frame: .zero)
-        backgroundView.translatesAutoresizingMaskIntoConstraints = false
         backgroundView.contentMode = .redraw
         
-        // Insert background behind the canvas drawing layer
+        // Insert background behind the canvas drawing layer.
+        // We manually manage the frame instead of using constraints,
+        // because we need it to exactly match contentSize at all times.
         canvasView.insertSubview(backgroundView, at: 0)
-        
-        // Pin to content layout guide on all 4 sides — this makes the background
-        // follow the PKCanvasView's content area in both page and whiteboard modes.
-        NSLayoutConstraint.activate([
-            backgroundView.topAnchor.constraint(equalTo: canvasView.contentLayoutGuide.topAnchor),
-            backgroundView.leadingAnchor.constraint(equalTo: canvasView.contentLayoutGuide.leadingAnchor),
-            backgroundView.trailingAnchor.constraint(equalTo: canvasView.contentLayoutGuide.trailingAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: canvasView.contentLayoutGuide.bottomAnchor)
-        ])
+    }
+    
+    /// Keep the background view frame exactly equal to the canvas content size.
+    /// This ensures the background fills the entire drawable area and scrolls/zooms
+    /// with the drawing content as a single unit.
+    private func syncBackgroundFrame() {
+        guard let canvasView = canvasView, let backgroundView = backgroundView else { return }
+        let contentSize = canvasView.contentSize
+        let newFrame = CGRect(origin: .zero, size: contentSize)
+        if backgroundView.frame != newFrame {
+            backgroundView.frame = newFrame
+            backgroundView.setNeedsDisplay()
+        }
     }
     
     // MARK: - Configuration (may be called before viewDidLoad)
@@ -141,21 +147,17 @@ final class CanvasViewController: UIViewController {
         canvasMode: CanvasMode = .page,
         appearance: CanvasAppearance = .system
     ) {
-        // Store for later application
         pendingDrawing = drawing
         pendingCanvasSize = canvasSize
         pendingTemplate = template
         pendingCanvasMode = canvasMode
         pendingAppearance = appearance
         
-        // Store the template/background for immediate use
         currentTemplate = template
-        currentCanvasMode = canvasMode
         configuredMode = canvasMode
         currentAppearance = appearance
         currentCanvasSize = canvasSize
         
-        // If view is already loaded, apply immediately
         if isViewLoaded {
             applyPendingConfiguration()
         }
@@ -173,43 +175,61 @@ final class CanvasViewController: UIViewController {
         
         let size = pendingCanvasSize ?? currentCanvasSize
         let template = pendingTemplate ?? currentTemplate
-        let mode = pendingCanvasMode ?? currentCanvasMode
+        let mode = pendingCanvasMode ?? configuredMode
         let appearance = pendingAppearance ?? currentAppearance
         
         currentCanvasSize = size
         currentTemplate = template
-        currentCanvasMode = mode
         configuredMode = mode
         currentAppearance = appearance
         
         applyContentSize(for: mode, size: size)
+        syncBackgroundFrame()
         
-        backgroundView.setNeedsDisplay()
         backgroundView.configure(
             with: template,
             appearance: appearance,
             traitCollection: traitCollection
         )
+        
+        notifyBackgroundColor()
+        
+        // Clear pending
+        pendingDrawing = nil
+        pendingCanvasSize = nil
+        pendingTemplate = nil
+        pendingCanvasMode = nil
+        pendingAppearance = nil
+    }
+    
+    // MARK: - Live Updates (called from updateUIViewController)
+    
+    func updateTemplate(_ template: Template) {
+        guard let backgroundView = backgroundView else { return }
+        currentTemplate = template
+        backgroundView.configure(
+            with: template,
+            appearance: currentAppearance,
+            traitCollection: traitCollection
+        )
+        notifyBackgroundColor()
     }
     
     func updateCanvasMode(_ mode: CanvasMode, canvasSize: CGSize) {
-        currentCanvasMode = mode
         configuredMode = mode
         currentCanvasSize = canvasSize
-        pendingCanvasMode = mode
-        pendingCanvasSize = canvasSize
         
-        guard let canvasView = canvasView else { return }
+        guard canvasView != nil else { return }
         
         applyContentSize(for: mode, size: canvasSize)
-        backgroundView?.setNeedsDisplay()
+        syncBackgroundFrame()
     }
     
     func updateAppearance(_ appearance: CanvasAppearance) {
         guard appearance != currentAppearance else { return }
         currentAppearance = appearance
-        pendingAppearance = appearance
         backgroundView?.updateAppearance(appearance, traitCollection: traitCollection)
+        notifyBackgroundColor()
     }
     
     func updateTool(from toolState: ToolState) {
@@ -232,11 +252,17 @@ final class CanvasViewController: UIViewController {
         lastKnownDrawing = drawing
     }
     
+    // MARK: - Background Color Notification
+    
+    /// Resolves the current background color and notifies SwiftUI so the
+    /// editor view's ZStack background can match (preventing black borders).
+    private func notifyBackgroundColor() {
+        let color = backgroundView?.resolvedBackgroundColor ?? .systemBackground
+        onBackgroundColorResolved?(color)
+    }
+    
     // MARK: - Content Sizing
     
-    /// Set the content size for the given mode and base size
-    /// - For page mode: fixed size matching the page dimensions
-    /// - For whiteboard mode: generous initial size (2000+) that auto-expands as user draws
     private func applyContentSize(for mode: CanvasMode, size: CGSize) {
         guard let canvasView = canvasView else { return }
         
@@ -245,8 +271,8 @@ final class CanvasViewController: UIViewController {
             infiniteManager.setFixedSize(size)
         } else {
             let initialSize = CGSize(
-                width: max(size.width, 2000),
-                height: max(size.height, 2000)
+                width: max(size.width, 3000),
+                height: max(size.height, 3000)
             )
             canvasView.contentSize = initialSize
             infiniteManager = InfiniteCanvasManager(initialSize: initialSize)
@@ -255,16 +281,10 @@ final class CanvasViewController: UIViewController {
     
     // MARK: - Canvas Expansion (Whiteboard Mode)
     
-    /// Expand the canvas content in whiteboard mode based on drawing bounds.
-    /// PKCanvasView auto-expands its contentSize slightly when strokes approach the edge,
-    /// but we proactively expand by larger chunks (500pt via InfiniteCanvasManager)
-    /// for a smoother infinite-canvas feel with fewer small resize events.
-    /// The KVO on contentSize ensures the background view always matches.
     private func expandCanvasIfNeeded() {
-        guard currentCanvasMode == .whiteboard, let canvasView = canvasView else { return }
+        guard configuredMode == .whiteboard, let canvasView = canvasView else { return }
         
-        // Use drawing bounds with padding for a smooth expansion experience
-        let drawingBounds = canvasView.drawing.bounds.insetBy(dx: -50, dy: -50)
+        let drawingBounds = canvasView.drawing.bounds.insetBy(dx: -100, dy: -100)
         guard let newSize = infiniteManager.expandIfNeeded(drawingBounds: drawingBounds) else { return }
         
         let clamped = CGSize(
@@ -273,6 +293,7 @@ final class CanvasViewController: UIViewController {
         )
         
         canvasView.contentSize = clamped
+        syncBackgroundFrame()
     }
 }
 
@@ -286,7 +307,6 @@ extension CanvasViewController: PKCanvasViewDelegate {
         guard newDrawing != lastKnownDrawing else { return }
         lastKnownDrawing = newDrawing
         
-        // In whiteboard mode, expand content if needed
         expandCanvasIfNeeded()
         
         delegate?.canvasDrawingDidChange(newDrawing)

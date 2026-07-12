@@ -1,13 +1,36 @@
 // ScribeTheme.swift
-// Scribe — Design system constants and theme definitions
+// Scribe — Design system constants and premium theme definitions
 
 import SwiftUI
 
 enum ScribeTheme {
     
-    // MARK: - Colors
+    // MARK: - Brand Colors
     
     static let accentColor = Color(hex: "#5B7FFF")!
+    static let accentGradient = LinearGradient(
+        colors: [Color(hex: "#5B7FFF")!, Color(hex: "#7C5CFF")!],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let warmGradient = LinearGradient(
+        colors: [Color(hex: "#FF6B6B")!, Color(hex: "#FF8E53")!],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let coolGradient = LinearGradient(
+        colors: [Color(hex: "#00B4DB")!, Color(hex: "#0083B0")!],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let subtleBackground = LinearGradient(
+        colors: [
+            Color(.systemBackground),
+            Color(.systemBackground).opacity(0.97)
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+    )
     
     static let notebookColors: [String] = [
         "#5B7FFF", "#FF6B6B", "#2ECC71", "#F39C12", "#9B59B6",
@@ -18,8 +41,8 @@ enum ScribeTheme {
     // MARK: - Canvas
     
     static let defaultPageSize = CGSize(width: 768, height: 1024)
-    static let a4PageSize = CGSize(width: 595, height: 842)  // 72 DPI
-    static let letterPageSize = CGSize(width: 612, height: 792) // 72 DPI
+    static let a4PageSize = CGSize(width: 595, height: 842)
+    static let letterPageSize = CGSize(width: 612, height: 792)
     
     // MARK: - Typography
     
@@ -35,9 +58,31 @@ enum ScribeTheme {
     static let cornerRadius: CGFloat = 16
     static let cardPadding: CGFloat = 16
     
+    // MARK: - Shadows
+    
+    static func cardShadow() -> some ViewModifier {
+        CardShadowModifier()
+    }
+    
     // MARK: - Animation
     
     static let quickAnimation = Animation.easeInOut(duration: 0.15)
     static let standardAnimation = Animation.easeInOut(duration: 0.25)
     static let springAnimation = Animation.spring(duration: 0.35, bounce: 0.2)
+}
+
+// MARK: - View Modifiers
+
+struct CardShadowModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+            .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
+    }
+}
+
+extension View {
+    func scribeCardShadow() -> some View {
+        modifier(CardShadowModifier())
+    }
 }

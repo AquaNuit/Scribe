@@ -1,5 +1,5 @@
 // CanvasEditorView.swift
-// Scribe — Full-screen canvas editing experience with tool palette
+// Scribe — Full-screen canvas editing experience with premium tool palette
 
 import SwiftUI
 import PencilKit
@@ -15,10 +15,14 @@ struct CanvasEditorView: View {
     @State private var viewModel = CanvasViewModel()
     @State private var showToolPalette = true
     @State private var showPageSettings = false
-    @State private var showExportSheet = false
+    @State private var canvasBackgroundColor = Color(.systemBackground)
     
     var body: some View {
         ZStack {
+            // Background that matches the canvas — prevents black borders
+            canvasBackgroundColor
+                .ignoresSafeArea()
+            
             // Canvas
             CanvasView(
                 drawing: $viewModel.drawing,
@@ -37,6 +41,9 @@ struct CanvasEditorView: View {
                 },
                 onStrokeEnded: {
                     viewModel.strokeEnded()
+                },
+                onBackgroundColorResolved: { uiColor in
+                    canvasBackgroundColor = Color(uiColor)
                 }
             )
             .ignoresSafeArea()
@@ -45,7 +52,7 @@ struct CanvasEditorView: View {
             if showToolPalette {
                 VStack {
                     Spacer()
-                    ToolPaletteView()
+                    ToolPaletteView(viewModel: viewModel)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 .padding(.bottom, 8)
@@ -60,6 +67,7 @@ struct CanvasEditorView: View {
         .persistentSystemOverlays(.hidden)
         .onAppear {
             viewModel.loadPage(page)
+            resolveInitialBackground()
         }
         .onDisappear {
             viewModel.save()
@@ -72,7 +80,7 @@ struct CanvasEditorView: View {
     // MARK: - Top Bar
     
     private var topBar: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             // Close button
             Button {
                 viewModel.save()
@@ -80,29 +88,21 @@ struct CanvasEditorView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 36, height: 36)
+                    .foregroundColor(.primary)
+                    .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
             
             Spacer()
             
-            // Page title
-            Text(page.title.isEmpty ? "Untitled" : page.title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-            
-            Spacer()
-            
             // Undo/Redo
-            HStack(spacing: 4) {
+            HStack(spacing: 2) {
                 Button {
                     viewModel.undo()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
                         .font(.body)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40)
                 }
                 .disabled(!viewModel.canUndo)
                 
@@ -111,21 +111,26 @@ struct CanvasEditorView: View {
                 } label: {
                     Image(systemName: "arrow.uturn.forward")
                         .font(.body)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40)
                 }
                 .disabled(!viewModel.canRedo)
             }
-            .foregroundStyle(.primary)
+            .foregroundColor(.primary)
             .background(.ultraThinMaterial, in: Capsule())
+            
+            // Page Settings
+            Button {
+                showPageSettings = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.body.weight(.medium))
+                    .foregroundColor(.primary)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
             
             // More menu
             Menu {
-                Button {
-                    showPageSettings = true
-                } label: {
-                    Label("Page Settings", systemImage: "doc.badge.gearshape")
-                }
-                
                 Button {
                     withAnimation { showToolPalette.toggle() }
                 } label: {
@@ -147,15 +152,18 @@ struct CanvasEditorView: View {
                 Divider()
                 
                 Button {
-                    // Future: export
+                    toolState.fingerDrawingEnabled.toggle()
                 } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
+                    Label(
+                        toolState.fingerDrawingEnabled ? "Pencil Only" : "Allow Finger Drawing",
+                        systemImage: toolState.fingerDrawingEnabled ? "hand.raised.slash" : "hand.draw"
+                    )
                 }
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 36, height: 36)
+                    .foregroundColor(.primary)
+                    .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
         }
@@ -167,6 +175,17 @@ struct CanvasEditorView: View {
     
     private var templateForPage: Template {
         Template.allBuiltIn.first { $0.backgroundStyle == page.backgroundStyle } ?? .blank
+    }
+    
+    private func resolveInitialBackground() {
+        switch page.canvasAppearance {
+        case .dark:
+            canvasBackgroundColor = Color(red: 0.11, green: 0.11, blue: 0.12)
+        case .light:
+            canvasBackgroundColor = Color(red: 1.0, green: 0.995, blue: 0.98)
+        case .system:
+            canvasBackgroundColor = Color(.systemBackground)
+        }
     }
 }
 
@@ -187,9 +206,9 @@ struct PageSettingsSheet: View {
         NavigationStack {
             Form {
                 titleSection
+                appearanceSection
                 backgroundSection
                 canvasModeSection
-                appearanceSection
             }
             .navigationTitle("Page Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -222,33 +241,6 @@ struct PageSettingsSheet: View {
     }
     
     @ViewBuilder
-    private var backgroundSection: some View {
-        SwiftUI.Section("Background") {
-            ForEach(BackgroundStyle.allCases, id: \.self) { (style: BackgroundStyle) in
-                Button {
-                    selectedBackground = style
-                } label: {
-                    HStack {
-                        Image(systemName: style.systemImage)
-                            .frame(width: 24)
-                            .foregroundColor(.primary)
-                        
-                        Text(style.displayName)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
-                        
-                        if selectedBackground == style {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    @ViewBuilder
     private var appearanceSection: some View {
         SwiftUI.Section("Canvas Appearance") {
             ForEach(CanvasAppearance.allCases, id: \.self) { (appearance: CanvasAppearance) in
@@ -266,6 +258,33 @@ struct PageSettingsSheet: View {
                         Spacer()
                         
                         if selectedAppearance == appearance {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var backgroundSection: some View {
+        SwiftUI.Section("Background Pattern") {
+            ForEach(BackgroundStyle.allCases, id: \.self) { (style: BackgroundStyle) in
+                Button {
+                    selectedBackground = style
+                } label: {
+                    HStack {
+                        Image(systemName: style.systemImage)
+                            .frame(width: 24)
+                            .foregroundColor(.primary)
+                        
+                        Text(style.displayName)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        if selectedBackground == style {
                             Image(systemName: "checkmark")
                                 .foregroundColor(.accentColor)
                         }

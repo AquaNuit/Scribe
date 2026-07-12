@@ -18,15 +18,19 @@ struct SidebarView: View {
             // MARK: - Main
             
             SwiftUI.Section("Library") {
-                Label("All Notebooks", systemImage: "books.vertical")
+                Label("All Notebooks", systemImage: "books.vertical.fill")
                     .tag(NavigationRouter.SidebarItem.allNotebooks)
+                    .foregroundStyle(router.selectedSidebarItem == .allNotebooks ? Color.white : Color.primary)
                 
                 Label("Favorites", systemImage: "heart.fill")
                     .tag(NavigationRouter.SidebarItem.favorites)
+                    .foregroundStyle(router.selectedSidebarItem == .favorites ? Color.white : Color.primary)
                 
-                Label("Recent", systemImage: "clock")
+                Label("Recent", systemImage: "clock.fill")
                     .tag(NavigationRouter.SidebarItem.recentlyModified)
+                    .foregroundStyle(router.selectedSidebarItem == .recentlyModified ? Color.white : Color.primary)
             }
+            .font(.body.weight(.medium))
             
             // MARK: - Tags
             

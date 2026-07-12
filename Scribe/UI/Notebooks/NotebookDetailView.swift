@@ -1,5 +1,5 @@
 // NotebookDetailView.swift
-// Scribe — Notebook detail showing sections and pages
+// Scribe — Notebook detail showing sections and pages with premium design
 
 import SwiftUI
 import SwiftData
@@ -10,22 +10,20 @@ struct NotebookDetailView: View {
     @Environment(\.modelContext) private var modelContext
     
     let notebook: Notebook
-    @State private var showAddPage = false
     @State private var showAddSection = false
     @State private var newSectionTitle = ""
     
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
-                // Header
+            LazyVStack(alignment: .leading, spacing: 28) {
                 notebookHeader
                 
-                // Sections
-                ForEach(notebook.sortedSections) { section in
+                ForEach(notebook.sortedSections) { (section: Section) in
                     sectionView(section)
                 }
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
         .navigationTitle(notebook.title)
         .toolbar {
@@ -64,7 +62,16 @@ struct NotebookDetailView: View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: notebook.coverColorHex) ?? .blue)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: notebook.coverColorHex) ?? .blue,
+                                (Color(hex: notebook.coverColorHex) ?? .blue).opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 56, height: 56)
                 
                 Text(notebook.emoji ?? "📓")
@@ -75,45 +82,48 @@ struct NotebookDetailView: View {
                 Text(notebook.title)
                     .font(.title2)
                     .fontWeight(.bold)
+                    .fontDesign(.rounded)
                 
                 HStack(spacing: 12) {
                     Label("\(notebook.pageCount) pages", systemImage: "doc")
                     Label("\(notebook.sortedSections.count) sections", systemImage: "folder")
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundColor(.secondary)
             }
             
             Spacer()
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 4)
     }
     
     // MARK: - Section View
     
     @ViewBuilder
     private func sectionView(_ section: Section) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(section.title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
                 Text("\(section.sortedPages.count)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(.fill, in: Capsule())
+                    .padding(.vertical, 3)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
             }
             
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 12)],
-                spacing: 12
+                columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)],
+                spacing: 16
             ) {
-                ForEach(section.sortedPages) { page in
+                ForEach(section.sortedPages) { (page: Page) in
                     pageCard(page)
                         .onTapGesture {
                             router.navigateToPage(page, in: notebook)
@@ -123,7 +133,6 @@ struct NotebookDetailView: View {
                         }
                 }
                 
-                // Add page button
                 addPageButton(section: section)
             }
         }
@@ -133,42 +142,41 @@ struct NotebookDetailView: View {
     
     private func pageCard(_ page: Page) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Thumbnail
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.systemBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(Color(.separator), lineWidth: 0.5)
-                    )
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.secondarySystemBackground))
+                
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
                 
                 if let thumbnailData = page.thumbnailData,
                    let uiImage = UIImage(data: thumbnailData) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                 } else {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         Image(systemName: page.backgroundStyle.systemImage)
-                            .font(.title3)
-                            .foregroundStyle(.quaternary)
+                            .font(.title2)
+                            .foregroundColor(.tertiary)
                         
                         Text(page.backgroundStyle.displayName)
                             .font(.caption2)
-                            .foregroundStyle(.quaternary)
+                            .foregroundColor(.quaternary)
                     }
                 }
             }
-            .frame(height: 160)
+            .frame(height: 170)
             
-            // Title
             Text(page.title.isEmpty ? "Untitled" : page.title)
                 .font(.caption)
-                .foregroundStyle(page.title.isEmpty ? .tertiary : .primary)
+                .fontWeight(.medium)
+                .foregroundColor(page.title.isEmpty ? .tertiary : .primary)
                 .lineLimit(1)
-                .padding(.top, 6)
+                .padding(.top, 8)
         }
+        .scribeCardShadow()
     }
     
     // MARK: - Add Page Button
@@ -181,20 +189,25 @@ struct NotebookDetailView: View {
         } label: {
             VStack {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 10)
                         .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                        .foregroundStyle(.tertiary)
+                        .foregroundColor(.tertiary)
                     
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                    VStack(spacing: 6) {
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                        
+                        Text("New Page")
+                            .font(.caption2)
+                            .foregroundColor(.tertiary)
+                    }
                 }
-                .frame(height: 160)
+                .frame(height: 170)
                 
-                Text("New Page")
+                Text(" ")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
             }
         }
         .buttonStyle(.plain)
@@ -225,7 +238,6 @@ struct NotebookDetailView: View {
     
     private func addPageToFirstSection() {
         guard let section = notebook.sortedSections.first else {
-            // Create a section first
             createSection()
             return
         }

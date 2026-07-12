@@ -18,10 +18,12 @@ struct CanvasView: UIViewControllerRepresentable {
     let onDrawingChanged: (PKDrawing) -> Void
     var onStrokeBegan: (() -> Void)?
     var onStrokeEnded: (() -> Void)?
+    var onBackgroundColorResolved: ((UIColor) -> Void)?
     
     func makeUIViewController(context: Context) -> CanvasViewController {
         let controller = CanvasViewController()
         controller.delegate = context.coordinator
+        controller.onBackgroundColorResolved = onBackgroundColorResolved
         controller.configure(
             drawing: drawing,
             canvasSize: canvasSize,
@@ -34,12 +36,20 @@ struct CanvasView: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ controller: CanvasViewController, context: Context) {
+        // Update tool
         controller.updateTool(from: toolState)
         
-        // Sync appearance if changed
+        // Update template if it changed (this is what was missing before)
+        let currentTemplate = template
+        controller.updateTemplate(currentTemplate)
+        
+        // Update appearance
         controller.updateAppearance(appearance)
         
-        // Sync canvas mode if changed
+        // Sync background color callback
+        controller.onBackgroundColorResolved = onBackgroundColorResolved
+        
+        // Update canvas mode if changed
         if controller.configuredMode != canvasMode {
             controller.updateCanvasMode(canvasMode, canvasSize: canvasSize)
         }

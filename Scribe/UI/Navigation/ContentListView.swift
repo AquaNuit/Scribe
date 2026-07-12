@@ -1,5 +1,5 @@
 // ContentListView.swift
-// Scribe — Content list showing notebooks or pages based on sidebar selection
+// Scribe — Content list showing notebooks based on sidebar selection
 
 import SwiftUI
 import SwiftData
@@ -71,9 +71,9 @@ struct ContentListView: View {
             } else {
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 20)],
-                    spacing: 20
+                    spacing: 24
                 ) {
-                    ForEach(filtered) { notebook in
+                    ForEach(filtered) { (notebook: Notebook) in
                         NotebookCoverView(notebook: notebook)
                             .onTapGesture {
                                 router.navigateToNotebook(notebook)
@@ -83,7 +83,8 @@ struct ContentListView: View {
                             }
                     }
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
         }
         .navigationTitle(title)
@@ -115,7 +116,6 @@ struct ContentListView: View {
         Divider()
         
         Button {
-            // Duplicate
             let service = NotebookService(modelContext: modelContext)
             let _ = service.createNotebook(
                 title: "\(notebook.title) (Copy)",

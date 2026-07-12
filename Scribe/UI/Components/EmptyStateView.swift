@@ -1,5 +1,5 @@
 // EmptyStateView.swift
-// Scribe — Reusable empty state placeholder
+// Scribe — Premium empty state placeholder with gradient accents
 
 import SwiftUI
 
@@ -12,28 +12,51 @@ struct EmptyStateView: View {
     var action: (() -> Void)? = nil
     
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 52))
-                .foregroundStyle(.tertiary)
-                .symbolRenderingMode(.hierarchical)
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                ScribeTheme.accentColor.opacity(0.15),
+                                ScribeTheme.accentColor.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 40))
+                    .foregroundStyle(ScribeTheme.accentGradient)
+                    .symbolRenderingMode(.hierarchical)
+            }
             
-            Text(title)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-            
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 280)
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.primary)
+                
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
+            }
             
             if let actionTitle = actionTitle, let action = action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
-                    .padding(.top, 4)
+                Button(action: action) {
+                    Text(actionTitle)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(ScribeTheme.accentGradient, in: Capsule())
+                        .foregroundColor(.white)
+                }
+                .padding(.top, 4)
             }
         }
     }

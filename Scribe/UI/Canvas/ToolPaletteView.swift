@@ -1,13 +1,16 @@
 // ToolPaletteView.swift
-// Scribe — Floating tool palette for the canvas editor
+// Scribe — Premium floating tool palette for the canvas editor
 
 import SwiftUI
 
 struct ToolPaletteView: View {
     
+    var viewModel: CanvasViewModel?
+    
     @Environment(ToolState.self) private var toolState
     @State private var showColorPicker = false
     @State private var showBrushSize = false
+    @State private var showShapePicker = false
     
     // Tool groups for the palette
     private let inkTools: [ToolType] = [.fountainPen, .pencil, .marker, .highlighter]
@@ -19,7 +22,7 @@ struct ToolPaletteView: View {
         HStack(spacing: 0) {
             // Ink Tools
             HStack(spacing: 2) {
-                ForEach(inkTools) { tool in
+                ForEach(inkTools) { (tool: ToolType) in
                     toolButton(tool)
                 }
             }
@@ -38,9 +41,21 @@ struct ToolPaletteView: View {
             
             // Utility Tools
             HStack(spacing: 2) {
-                ForEach(utilityTools) { tool in
+                ForEach(utilityTools) { (tool: ToolType) in
                     toolButton(tool)
                 }
+            }
+            
+            divider
+            
+            // Shapes Button
+            Button {
+                showShapePicker.toggle()
+            } label: {
+                Image(systemName: "square.on.circle")
+                    .font(.system(size: 18))
+                    .frame(width: 40, height: 40)
+                    .foregroundColor(.secondary)
             }
             
             divider
@@ -48,10 +63,14 @@ struct ToolPaletteView: View {
             // Ruler Toggle
             rulerButton
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+        )
         .padding(.horizontal, 20)
         .popover(isPresented: $showColorPicker) {
             ColorPickerView()
@@ -61,6 +80,11 @@ struct ToolPaletteView: View {
         .popover(isPresented: $showBrushSize) {
             BrushSizeSlider()
                 .frame(width: 240, height: 100)
+                .presentationCompactAdaptation(.popover)
+        }
+        .popover(isPresented: $showShapePicker) {
+            ShapePickerView(viewModel: viewModel)
+                .frame(width: 320, height: 200)
                 .presentationCompactAdaptation(.popover)
         }
     }
@@ -75,11 +99,12 @@ struct ToolPaletteView: View {
                 toolState.selectTool(tool)
             }
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 Image(systemName: tool.systemImage)
                     .font(.system(size: 18, weight: isSelected ? .bold : .regular))
                     .symbolRenderingMode(.hierarchical)
                     .frame(width: 40, height: 32)
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
                 
                 // Active indicator
                 Capsule()
@@ -87,7 +112,6 @@ struct ToolPaletteView: View {
                     .frame(width: 20, height: 3)
             }
         }
-        .foregroundStyle(isSelected ? .primary : .secondary)
         .contentShape(Rectangle())
     }
     
@@ -99,11 +123,12 @@ struct ToolPaletteView: View {
         } label: {
             Circle()
                 .fill(Color(hex: toolState.currentColorHex) ?? .black)
-                .frame(width: 26, height: 26)
+                .frame(width: 28, height: 28)
                 .overlay(
                     Circle()
-                        .strokeBorder(.primary.opacity(0.2), lineWidth: 1.5)
+                        .strokeBorder(.primary.opacity(0.15), lineWidth: 1.5)
                 )
+                .shadow(color: (Color(hex: toolState.currentColorHex) ?? .black).opacity(0.3), radius: 3, y: 1)
                 .padding(7)
         }
     }
@@ -135,8 +160,8 @@ struct ToolPaletteView: View {
             Image(systemName: "ruler")
                 .font(.system(size: 18, weight: toolState.isRulerActive ? .bold : .regular))
                 .frame(width: 40, height: 40)
+                .foregroundColor(toolState.isRulerActive ? .accentColor : .secondary)
         }
-        .foregroundStyle(toolState.isRulerActive ? .primary : .secondary)
     }
     
     // MARK: - Divider
@@ -145,7 +170,7 @@ struct ToolPaletteView: View {
         Rectangle()
             .fill(.separator)
             .frame(width: 1, height: 28)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 5)
     }
 }
 

@@ -103,6 +103,37 @@ final class CanvasViewModel {
         updateUndoState()
     }
     
+    // MARK: - Shape Insertion
+    
+    func insertShape(_ type: ScribeShapeType, colorHex: String, width: CGFloat, at bounds: CGRect) {
+        let color = UIColor(hex: colorHex) ?? .black
+        let shapeDrawing = ShapeInsertionService.createShapeDrawing(
+            type: type,
+            color: color,
+            width: width,
+            bounds: bounds
+        )
+        
+        let preStrokeDrawing = self.drawing
+        let postStrokeDrawing = self.drawing.appending(shapeDrawing)
+        
+        undoManager.record(
+            undo: { [weak self] in
+                self?.drawing = preStrokeDrawing
+                self?.isDirty = true
+            },
+            redo: { [weak self] in
+                self?.drawing = postStrokeDrawing
+                self?.isDirty = true
+            }
+        )
+        
+        self.drawing = postStrokeDrawing
+        self.isDirty = true
+        updateUndoState()
+        scheduleAutoSave()
+    }
+    
     // MARK: - Private
     
     private func updateUndoState() {

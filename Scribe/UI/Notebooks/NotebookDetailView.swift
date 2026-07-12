@@ -169,12 +169,21 @@ struct NotebookDetailView: View {
             }
             .frame(height: 170)
             
-            Text(page.title.isEmpty ? "Untitled" : page.title)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(page.title.isEmpty ? .tertiary : .primary)
-                .lineLimit(1)
-                .padding(.top, 8)
+            if page.title.isEmpty {
+                Text("Untitled")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .padding(.top, 8)
+            } else {
+                Text(page.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .padding(.top, 8)
+            }
         }
         .scribeCardShadow()
     }

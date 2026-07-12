@@ -159,11 +159,11 @@ struct NotebookDetailView: View {
                     VStack(spacing: 8) {
                         Image(systemName: page.backgroundStyle.systemImage)
                             .font(.title2)
-                            .foregroundColor(.tertiary)
+                            .foregroundStyle(.tertiary)
                         
                         Text(page.backgroundStyle.displayName)
                             .font(.caption2)
-                            .foregroundColor(.quaternary)
+                            .foregroundStyle(.quaternary)
                     }
                 }
             }
@@ -191,7 +191,7 @@ struct NotebookDetailView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                        .foregroundColor(.tertiary)
+                        .foregroundStyle(.tertiary)
                     
                     VStack(spacing: 6) {
                         Image(systemName: "plus")
@@ -200,7 +200,7 @@ struct NotebookDetailView: View {
                         
                         Text("New Page")
                             .font(.caption2)
-                            .foregroundColor(.tertiary)
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 .frame(height: 170)
